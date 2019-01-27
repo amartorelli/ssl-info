@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
@@ -25,13 +27,30 @@ func parseCert(cert *x509.Certificate) (certInfo, error) {
 	c["SignatureAlgorithm"] = cert.SignatureAlgorithm.String()
 
 	c["PublicKeyAlgorithm"] = cert.PublicKeyAlgorithm.String()
-	pub, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
-	if err != nil {
-		return c, err
+	// pub, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// dst = make([]byte, hex.EncodedLen(len(pub)))
+	// hex.Encode(dst, pub)
+	switch cert.PublicKey.(type) {
+	case *rsa.PublicKey:
+		logrus.Error("this is RSA")
+		pub := cert.PublicKey.(*rsa.PublicKey)
+		logrus.Error(pub.N)
+		// c["PublicKey"] = strings.ToUpper(string(pub.N))
+	case *ecdsa.PublicKey:
+		logrus.Error("this is ECDSA")
+		pub := cert.PublicKey.(*ecdsa.PublicKey)
+		x := hex.EncodeToString([]byte(pub.X.String()))
+		logrus.Errorf("x: %s", x)
+		y := hex.EncodeToString([]byte(pub.Y.String()))
+		logrus.Errorf("y: %s", y)
+		// c["PublicKey"] = strings.ToUpper(string(pub.X))
+	default:
+		fmt.Println("it's something else")
 	}
-	dst = make([]byte, hex.EncodedLen(len(pub)))
-	hex.Encode(dst, pub)
-	c["PublicKey"] = strings.ToUpper(string(dst))
 
 	c["Version"] = strconv.FormatInt(int64(cert.Version), 10)
 	c["SerialNumber"] = cert.SerialNumber.String()
@@ -86,7 +105,7 @@ func parseCert(cert *x509.Certificate) (certInfo, error) {
 
 func (ci certInfo) String() string {
 	certInfoStr := make([]string, 0)
-	order := []string{"Subject", "NotBefore", "NotAfter", "PublicKey", "Version", "Issuer", "SerialNumber", "PublicKeyAlgorithm", "SignatureAlgorithm", "Signature", "IsCA", "SubjectKeyId", "AuthorityKeyId", "DNSNames", "EmailAddresses", "IPAddresses", "URIs"}
+	order := []string{"Subject", "NotBefore", "NotAfter", "PublicKeyAlgorithm", "PublicKey", "Version", "Issuer", "SerialNumber", "SignatureAlgorithm", "Signature", "IsCA", "SubjectKeyId", "AuthorityKeyId", "DNSNames", "EmailAddresses", "IPAddresses", "URIs"}
 	for _, o := range order {
 		val, ok := ci[o]
 		if ok {
